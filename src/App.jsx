@@ -21,11 +21,12 @@ import fondo3 from "./assets/fondo3.jpeg";
 import { apiChecklistEntrega } from "./lib/apiChecklistEntrega";
 
 const ASESORES_VOLVO = [
-  "Enrique Vazquez Islas",
-  "Ricardo Platas",
-  "Verónica Del Rayo Galindo León",
-  "Julio Camacho Barragán",
+  "Edgar Valencia",
+  "Carlos Macedonio",
+  "Luis Enrique Ramos",
+  "Juan Carlos Ubaldo",
 ];
+
 
 const METODOS_CONTACTO = [
   { value: "whatsapp", label: "WhatsApp" },
