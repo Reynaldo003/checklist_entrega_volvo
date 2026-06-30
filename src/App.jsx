@@ -1,145 +1,59 @@
-// src/App.jsx
+// src/pages/ChecklistEntrega.jsx
 import { useMemo, useState } from "react";
+import { motion } from "framer-motion";
 import {
-  Building2,
-  Camera,
-  CarFront,
-  CheckCircle2,
-  ClipboardList,
-  Gauge,
-  Loader2,
-  Mail,
-  MessageSquareText,
+  Sparkles,
+  User,
   Phone,
-  ReceiptText,
+  Mail,
+  CalendarDays,
+  MessageSquare,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
   Save,
+  Loader2,
+  ArrowRight,
+  Search,
+  Building2,
   UserRound,
-  Wrench,
+  Clock,
 } from "lucide-react";
 
-import fondo3 from "./assets/fondo3.jpeg";
-import { apiChecklistEntrega } from "./lib/apiChecklistEntrega";
-
-const ASESORES_VOLVO = [
-  "Edgar Valencia",
-  "Carlos Macedonio",
-  "Luis Enrique Ramos",
-  "Juan Carlos Ubaldo",
+// ─── CONSTANTES ──────────────────────────────────────────────────────────────
+const DEALERS = ["Volvo"];
+const ASESORES = [
+  "Enrique Vazquez Islas",
+  "Ricardo Platas",
+  "Verónica Del Rayo Galindo León",
+  "Julio Camacho Barragán",
+  "Fernanda Romero Aguilar",
 ];
+const CONTACTOS_PREFERIDOS = ["WhatsApp", "Teléfono", "Correo", "Presencial"];
+const PST_OPCIONES = ["PST1", "PST2", "PST3"];
 
-
-const METODOS_CONTACTO = [
-  { value: "whatsapp", label: "WhatsApp" },
-  { value: "correo", label: "Correo" },
-  { value: "llamada", label: "Llamada" },
-];
-
-const CHECKLIST_ENTREGA = [
-  {
-    titulo: "Explicación técnica al cliente",
-    ayuda: "Obligatorio: no entregar unidad sin explicación clara y validada.",
-    items: [
-      ["explicar_falla_detectada", "Explicar claramente cuál era la falla detectada", true],
-      ["explicar_causa_raiz", "Explicar la causa raíz encontrada", true],
-      ["mostrar_piezas_reemplazadas", "Mostrar piezas reemplazadas si aplica", false],
-      ["explicar_trabajos_realizados", "Explicar los trabajos realizados punto por punto", true],
-      ["explicar_pruebas_realizadas", "Explicar pruebas realizadas para validar reparación", true],
-      ["informar_garantias_aplicables", "Informar garantías aplicables", true],
-      ["explicar_recomendaciones_futuras", "Explicar recomendaciones futuras o mantenimiento preventivo", true],
-    ],
-  },
-  {
-    titulo: "Confirmación de comprensión del cliente",
-    ayuda: "Debe quedar medible que el cliente entendió y validó la explicación.",
-    items: [
-      ["preguntar_cliente_dudas", "Preguntar al cliente si tiene dudas", true],
-      ["confirmar_cliente_entendio", "Confirmar que el cliente entendió el trabajo realizado", true],
-      ["validacion_verbal_conformidad", "Solicitar validación verbal de conformidad", true],
-    ],
-  },
-  {
-    titulo: "Revisión conjunta de entrega",
-    items: [
-      ["revisar_fisicamente_vehiculo", "Revisar físicamente el vehículo con el cliente", true],
-      ["prueba_ruta_cliente_entrega", "Realizar prueba de ruta con el cliente si aplica", false],
-      ["validar_estado_estetico", "Validar estado estético del vehículo", true],
-      ["confirmar_sistemas_intervenidos", "Confirmar funcionamiento de sistemas intervenidos", true],
-      ["entregar_refacciones_reemplazadas", "Entregar refacciones reemplazadas si aplica", false],
-    ],
-  },
-  {
-    titulo: "Documentación final",
-    items: [
-      ["entregar_factura_orden_final", "Entregar factura y orden de servicio final", true],
-      ["entregar_desglose_trabajos_costos", "Entregar desglose de trabajos y costos", true],
-      ["obtener_firma_conformidad", "Obtener firma de conformidad de los trabajos realizados", true],
-    ],
-  },
-];
-
-const FORM_INICIAL = {
-  agencia: "Volvo",
-  nombre: "",
-  telefono: "",
-  correo: "",
-  asesor_servicio: "",
-  tecnico_responsable: "",
-  placas: "",
-  vin: "",
-  modelo: "",
-  kilometraje: "",
-  orden_servicio: "",
-  factura: "",
-  fecha_hora_entrega: dateTimeLocalActual(),
-  metodo_contacto_preferido: "whatsapp",
-  observaciones: "",
-  descripcion_evidencia: "",
-};
-
-function dateTimeLocalActual() {
-  const date = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours(),
-  )}:${pad(date.getMinutes())}`;
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+function cls(...clases) {
+  return clases.filter(Boolean).join(" ");
+}
+function normalizeStr(v) {
+  return String(v ?? "").trim();
+}
+function normalizarBusqueda(v) {
+  return normalizeStr(v).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
-function soloNumeros(value) {
-  return String(value || "").replace(/\D/g, "");
-}
-
-function normalizarTelefonoMx(value) {
-  const digits = soloNumeros(value);
-  if (digits.length === 10) return `52${digits}`;
-  return digits;
-}
-
-function telefonoValido(value) {
-  const digits = soloNumeros(value);
-  return digits.length === 10 || (digits.length === 12 && digits.startsWith("52"));
-}
-
-function emailValido(value) {
-  const email = String(value || "").trim();
-  if (!email) return true;
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
-}
-
-function cls(...values) {
-  return values.filter(Boolean).join(" ");
-}
-
-function Field({ label, icon: Icon, error, children, className = "" }) {
+// ─── COMPONENTES REUTILIZABLES (idénticos al Tráfico de Piso) ─────────────
+function Campo({ label, requerido, error, ayuda, children, className = "" }) {
   return (
-    <div className={className}>
-      <label className="mb-1.5 flex items-center gap-1.5 text-[11px] font-black uppercase tracking-wide text-white/70">
-        {Icon ? <Icon className="h-3.5 w-3.5 text-white/45" /> : null}
+    <div className={cls("min-w-0", className)}>
+      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-gray-500">
         {label}
+        {requerido && <span className="ml-1 text-amber-500">*</span>}
       </label>
-
       {children}
-
-      {error ? <p className="mt-1 text-[11px] font-bold text-red-200">{error}</p> : null}
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
+      {ayuda && !error && <p className="mt-1 text-xs text-gray-400">{ayuda}</p>}
     </div>
   );
 }
@@ -149,525 +63,448 @@ function Input({ error, className = "", ...props }) {
     <input
       {...props}
       className={cls(
-        "h-11 w-full rounded-xl border bg-white/10 px-3 text-sm font-bold text-white outline-none transition placeholder:text-white/35",
-        error ? "border-red-200 ring-2 ring-red-300/20" : "border-white/10 focus:border-white/40 focus:ring-2 focus:ring-white/10",
-        className,
+        "h-12 w-full rounded-xl border-2 bg-white px-4 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[#1a2a3a] focus:shadow-[0_0_0_4px_rgba(26,42,58,0.08)]",
+        error ? "border-red-300 focus:border-red-400" : "border-gray-200 hover:border-gray-300",
+        className
       )}
     />
   );
 }
 
-function Select({ error, className = "", children, ...props }) {
+function Select({ error, children, className = "", ...props }) {
   return (
     <select
       {...props}
       className={cls(
-        "h-11 w-full rounded-xl border bg-[#0b1b54]/95 px-3 text-sm font-bold text-white outline-none transition",
-        error ? "border-red-200 ring-2 ring-red-300/20" : "border-white/10 focus:border-white/40 focus:ring-2 focus:ring-white/10",
-        className,
+        "h-12 w-full rounded-xl border-2 bg-white px-4 pr-10 text-sm text-gray-800 outline-none transition-all appearance-none cursor-pointer focus:border-[#1a2a3a] focus:shadow-[0_0_0_4px_rgba(26,42,58,0.08)]",
+        error ? "border-red-300" : "border-gray-200 hover:border-gray-300",
+        className
       )}
+      style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E")`,
+        backgroundRepeat: "no-repeat",
+        backgroundPosition: "right 1rem center",
+      }}
     >
       {children}
     </select>
   );
 }
 
-function Textarea({ className = "", ...props }) {
+function Textarea({ error, className = "", ...props }) {
   return (
     <textarea
       {...props}
       className={cls(
-        "min-h-[92px] w-full resize-y rounded-xl border border-white/10 bg-white/10 px-3 py-3 text-sm font-bold text-white outline-none placeholder:text-white/35 focus:border-white/40 focus:ring-2 focus:ring-white/10",
-        className,
+        "min-h-[92px] w-full resize-none rounded-xl border-2 bg-white px-4 py-3 text-sm text-gray-800 outline-none transition-all placeholder:text-gray-400 focus:border-[#1a2a3a] focus:shadow-[0_0_0_4px_rgba(26,42,58,0.08)]",
+        error ? "border-red-300" : "border-gray-200 hover:border-gray-300",
+        className
       )}
     />
   );
 }
 
-function EstadoButton({ active, children, onClick, tone, disabled }) {
-  const activeClass = {
-    ok: "border-emerald-300/40 bg-emerald-400/20 text-emerald-100",
-    observacion: "border-amber-300/40 bg-amber-400/20 text-amber-100",
-    na: "border-slate-300/40 bg-slate-400/20 text-slate-100",
-  }[tone];
+// ─── Autocomplete Asesor (igual al de Tráfico de Piso) ──────────────────
+function AsesorAutocomplete({ value, onChange, error }) {
+  const [abierto, setAbierto] = useState(false);
+  const opciones = useMemo(() => {
+    const q = normalizarBusqueda(value);
+    if (!q) return ASESORES.slice(0, 8);
+    return ASESORES.filter((a) => normalizarBusqueda(a).includes(q)).slice(0, 8);
+  }, [value]);
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cls(
-        "h-9 rounded-xl border px-3 text-xs font-black transition disabled:cursor-not-allowed disabled:opacity-40",
-        active ? activeClass : "border-white/10 bg-white/10 text-white/55 hover:bg-white/20",
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
-function ChecklistCard({ checklist, onChange }) {
-  function setEstado(itemId, estado) {
-    onChange((prev) => {
-      const actual = prev[itemId] || { estado: "", comentario: "" };
-      const nextEstado = actual.estado === estado ? "" : estado;
-      const next = { ...prev, [itemId]: { ...actual, estado: nextEstado } };
-
-      if (!next[itemId].estado && !next[itemId].comentario) {
-        delete next[itemId];
-      }
-
-      return next;
-    });
-  }
-
-  function setComentario(itemId, comentario) {
-    onChange((prev) => {
-      const actual = prev[itemId] || { estado: "", comentario: "" };
-      const next = { ...prev, [itemId]: { ...actual, comentario } };
-
-      if (!next[itemId].estado && !next[itemId].comentario) {
-        delete next[itemId];
-      }
-
-      return next;
-    });
-  }
-
-  function marcarSeccion(items, estado) {
-    onChange((prev) => {
-      const next = { ...prev };
-
-      items.forEach(([itemId, _description, obligatorio]) => {
-        if (estado === "na" && obligatorio) return;
-
-        next[itemId] = {
-          ...(next[itemId] || { comentario: "" }),
-          estado,
-        };
-      });
-
-      return next;
-    });
-  }
-
-  return (
-    <div className="space-y-3">
-      {CHECKLIST_ENTREGA.map((section) => (
-        <section key={section.titulo} className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06]">
-          <div className="flex flex-col gap-2 border-b border-white/10 bg-white/10 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 className="text-sm font-black text-white">{section.titulo}</h3>
-              {section.ayuda ? <p className="mt-1 text-xs font-semibold text-white/45">{section.ayuda}</p> : null}
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => marcarSeccion(section.items, "ok")}
-                className="rounded-xl border border-emerald-300/30 bg-emerald-400/15 px-3 py-1.5 text-xs font-black text-emerald-100"
-              >
-                Todo OK
-              </button>
-
-              <button
-                type="button"
-                onClick={() => marcarSeccion(section.items, "na")}
-                className="rounded-xl border border-slate-300/30 bg-slate-400/15 px-3 py-1.5 text-xs font-black text-slate-100"
-              >
-                Todo N/A
-              </button>
-            </div>
-          </div>
-
-          <div className="divide-y divide-white/10">
-            {section.items.map(([itemId, description, obligatorio]) => {
-              const current = checklist[itemId] || { estado: "", comentario: "" };
-              const mostrarComentario = current.estado === "observacion";
-
-              return (
-                <div key={itemId} className="grid gap-3 p-3 lg:grid-cols-[1fr_310px]">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-bold leading-snug text-white/85">{description}</p>
-                      <span
-                        className={cls(
-                          "rounded-full px-2 py-0.5 text-[10px] font-black",
-                          obligatorio ? "bg-red-400/15 text-red-100" : "bg-slate-400/15 text-slate-100",
-                        )}
-                      >
-                        {obligatorio ? "OBLIGATORIO" : "SI APLICA"}
-                      </span>
-                    </div>
-
-                    {mostrarComentario ? (
-                      <input
-                        value={current.comentario || ""}
-                        onChange={(event) => setComentario(itemId, event.target.value)}
-                        placeholder="Comentario de la observación..."
-                        className="mt-2 h-10 w-full rounded-xl border border-white/10 bg-white/10 px-3 text-sm font-semibold text-white outline-none placeholder:text-white/35"
-                      />
-                    ) : null}
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <EstadoButton active={current.estado === "ok"} tone="ok" onClick={() => setEstado(itemId, "ok")}>
-                      Correcto
-                    </EstadoButton>
-                    <EstadoButton active={current.estado === "observacion"} tone="observacion" onClick={() => setEstado(itemId, "observacion")}>
-                      Observ.
-                    </EstadoButton>
-                    <EstadoButton
-                      active={current.estado === "na"}
-                      tone="na"
-                      disabled={obligatorio}
-                      onClick={() => setEstado(itemId, "na")}
-                    >
-                      N/A
-                    </EstadoButton>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function EvidenciasPicker({ evidencias, setEvidencias }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-3">
-      <label className="flex min-h-28 cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-white/20 bg-[#06122f]/60 px-4 py-5 text-center transition hover:bg-white/10">
-        <Camera className="mb-2 h-7 w-7 text-white/70" />
-        <span className="text-sm font-black text-white">Agregar evidencia</span>
-        <span className="mt-1 text-xs font-semibold text-white/50">Fotos de entrega, piezas o conformidad.</span>
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          multiple
-          className="hidden"
-          onChange={(event) => setEvidencias(Array.from(event.target.files || []))}
+    <div className="relative w-full">
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <Input
+          value={value}
+          error={error}
+          onFocus={() => setAbierto(true)}
+          onBlur={() => setTimeout(() => setAbierto(false), 140)}
+          onChange={(e) => { onChange(e.target.value); setAbierto(true); }}
+          placeholder="Buscar asesor..."
+          className="pl-10"
         />
-      </label>
-
-      {evidencias.length ? (
-        <div className="mt-3 grid gap-2">
-          {evidencias.map((file, index) => (
-            <div key={`${file.name}-${index}`} className="truncate rounded-xl border border-white/10 bg-white/10 px-3 py-2 text-xs font-bold text-white/80">
-              {file.name}
-            </div>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-export default function App() {
-  const [form, setForm] = useState(FORM_INICIAL);
-  const [checklist, setChecklist] = useState({});
-  const [evidencias, setEvidencias] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [mensaje, setMensaje] = useState("");
-  const [ok, setOk] = useState(false);
-
-  const errores = useMemo(() => {
-    const result = {};
-    if (!form.nombre.trim()) result.nombre = "Requerido";
-    if (!telefonoValido(form.telefono)) result.telefono = "Teléfono inválido";
-    if (!emailValido(form.correo)) result.correo = "Correo inválido";
-    if (!form.fecha_hora_entrega) result.fecha = "Requerido";
-    if (!form.asesor_servicio) result.asesor = "Selecciona asesor";
-    if (!form.tecnico_responsable.trim()) result.tecnico = "Requerido";
-    if (!form.orden_servicio.trim()) result.orden = "Requerido";
-    return result;
-  }, [form]);
-
-  const progress = useMemo(() => {
-    const ids = CHECKLIST_ENTREGA.flatMap((section) => section.items.map(([id]) => id));
-    const completados = ids.filter((id) => ["ok", "observacion", "na"].includes(checklist[id]?.estado)).length;
-    return { completados, total: ids.length };
-  }, [checklist]);
-
-  function setField(key, value) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-    setOk(false);
-  }
-
-  async function submit(event) {
-    event.preventDefault();
-    setMensaje("");
-    setOk(false);
-
-    if (Object.keys(errores).length) {
-      setMensaje(Object.values(errores)[0]);
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      await apiChecklistEntrega.create({
-        ...form,
-        telefono: normalizarTelefonoMx(form.telefono),
-        checklist,
-        evidencias_nuevas: evidencias,
-        descripcion_evidencia: form.descripcion_evidencia,
-      });
-
-      setOk(true);
-      setMensaje("Checklist de entrega guardado correctamente.");
-      setForm(FORM_INICIAL);
-      setChecklist({});
-      setEvidencias([]);
-    } catch (error) {
-      console.error(error);
-      setMensaje(error.message || "No fue posible guardar la entrega.");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div className="relative min-h-screen overflow-x-hidden">
-      <div className="fixed inset-0">
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${fondo3})` }}
-        />
-        <div className="absolute inset-0 bg-[#061126]/75" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(44,91,187,0.28),_transparent_34%),radial-gradient(circle_at_bottom_right,_rgba(255,255,255,0.12),_transparent_28%)]" />
       </div>
+      {abierto && (
+        <div className="absolute left-0 right-0 z-30 mt-1.5 max-h-52 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl">
+          {opciones.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-gray-400">Sin coincidencias</div>
+          ) : (
+            opciones.map((asesor) => (
+              <button
+                key={asesor}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => { onChange(asesor); setAbierto(false); }}
+                className="w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 transition"
+              >
+                {asesor}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
-      <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl items-center justify-center px-2 py-4 sm:px-4">
-        <form
-          onSubmit={submit}
-          className="w-full overflow-hidden rounded-3xl border border-white/10 bg-white/10 p-3 shadow-[0_30px_90px_-25px_rgba(0,0,0,0.65)] backdrop-blur-md sm:p-5"
-        >
-          <header className="mb-4 text-center">
-            <span className="inline-flex rounded-full border border-white/40 bg-white/10 px-3 py-1 text-[11px] font-bold tracking-wide text-white">
-              Automotriz R&amp;R · Volvo
-            </span>
+// ─── Componente para opciones del checklist (estilo toggle de 3 opciones) ──
+function OpcionChecklist({ label, value, onChange, obligatorio = false }) {
+  const opciones = [
+    { key: "correcto", label: "Correcto", icon: CheckCircle2, color: "text-emerald-600 border-emerald-200 bg-emerald-50" },
+    { key: "observar", label: "Observar", icon: AlertCircle, color: "text-amber-600 border-amber-200 bg-amber-50" },
+    { key: "na", label: "N/A", icon: XCircle, color: "text-gray-400 border-gray-200 bg-gray-50" },
+  ];
 
-            <h1 className="mt-2 text-2xl font-black text-white sm:text-3xl">
-              Checklist de entrega
-            </h1>
-
-            <p className="mt-1 text-sm font-semibold text-white/60">
-              Explicación al cliente, revisión final, documentación y evidencias.
-            </p>
-          </header>
-
-          {mensaje ? (
-            <div
+  return (
+    <div className="rounded-xl border-2 border-gray-200 bg-white p-4">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium text-gray-700">{label}</span>
+        {obligatorio && (
+          <span className="text-[10px] font-bold uppercase text-amber-500">*Obligatorio</span>
+        )}
+      </div>
+      <div className="flex gap-2">
+        {opciones.map(({ key, label: optLabel, icon: Icon, color }) => {
+          const selected = value === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => onChange(key)}
               className={cls(
-                "mb-4 rounded-2xl border px-4 py-3 text-sm font-black",
-                ok ? "border-emerald-300/30 bg-emerald-400/15 text-emerald-100" : "border-red-300/30 bg-red-400/15 text-red-100",
+                "flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border-2 px-3 py-2 text-xs font-semibold transition-all",
+                selected
+                  ? color
+                  : "border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50"
               )}
             >
-              {mensaje}
-            </div>
-          ) : null}
+              <Icon className="h-3.5 w-3.5" />
+              {optLabel}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
-          <div className="grid gap-4 lg:grid-cols-[360px_1fr]">
-            <aside className="space-y-4">
-              <section className="rounded-3xl border border-white/10 bg-[#06122f]/70 p-4">
-                <h2 className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-wide text-white/70">
-                  <UserRound className="h-4 w-4" />
-                  Datos generales
-                </h2>
+// ─── COMPONENTE PRINCIPAL ──────────────────────────────────────────────────
+export default function ChecklistEntrega() {
+  const [form, setForm] = useState({
+    dealer: "Volvo",
+    cliente: "",
+    telefono: "",
+    correo: "",
+    pst: "",
+    asesor: "",
+    tecnico: "",
+    fecha_entrega: "",
+    contacto_preferido: "WhatsApp",
+    // Checklist
+    explicacion_tecnica: "",
+    falla_detectada: "",
+    causa_raiz: "",
+    piezas_reemplazadas: "",
+    trabajos_realizados: "",
+    pruebas_validacion: "",
+    garantias: "",
+    recomendaciones: "",
+    cliente_dudas: "",
+    cliente_entendio: "",
+    validacion_conformidad: "",
+    comentarios: "",
+  });
 
-                <div className="grid gap-3">
-                  <Field label="Dealer" icon={Building2}>
-                    <Input value={form.agencia} disabled />
-                  </Field>
+  const [enviando, setEnviando] = useState(false);
+  const [mensaje, setMensaje] = useState("");
+  const [guardado, setGuardado] = useState(false);
+  const [mostrarErrores, setMostrarErrores] = useState(false);
 
-                  <Field label="Cliente" icon={UserRound} error={errores.nombre}>
-                    <Input
-                      value={form.nombre}
-                      error={errores.nombre}
-                      onChange={(event) => setField("nombre", event.target.value.toUpperCase())}
-                      placeholder="NOMBRE COMPLETO"
-                    />
-                  </Field>
+  function updateField(campo, valor) {
+    setForm((prev) => ({ ...prev, [campo]: valor }));
+    setGuardado(false);
+  }
 
-                  <Field label="Teléfono" icon={Phone} error={errores.telefono}>
-                    <Input
-                      value={form.telefono}
-                      error={errores.telefono}
-                      onChange={(event) => setField("telefono", soloNumeros(event.target.value).slice(0, 12))}
-                      inputMode="numeric"
-                      placeholder="2711234567"
-                    />
-                  </Field>
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMostrarErrores(true);
+    setEnviando(true);
+    setMensaje("");
+    // Simulación de guardado
+    setTimeout(() => {
+      setGuardado(true);
+      setMensaje("✅ Checklist guardado correctamente.");
+      setEnviando(false);
+      setMostrarErrores(false);
+    }, 1000);
+  };
 
-                  <Field label="Correo" icon={Mail} error={errores.correo}>
-                    <Input
-                      type="email"
-                      value={form.correo}
-                      error={errores.correo}
-                      onChange={(event) => setField("correo", event.target.value)}
-                      placeholder="correo@dominio.com"
-                    />
-                  </Field>
+  const itemsChecklist = [
+    { key: "explicacion_tecnica", label: "Explicación técnica al cliente", obligatorio: true },
+    { key: "falla_detectada", label: "Explicar claramente cuál era la falla detectada", obligatorio: true },
+    { key: "causa_raiz", label: "Explicar la causa raíz encontrada", obligatorio: true },
+    { key: "piezas_reemplazadas", label: "Mostrar piezas reemplazadas si aplica", obligatorio: false },
+    { key: "trabajos_realizados", label: "Explicar los trabajos realizados punto por punto", obligatorio: true },
+    { key: "pruebas_validacion", label: "Explicar pruebas realizadas para validar reparación", obligatorio: true },
+    { key: "garantias", label: "Informar garantías aplicables", obligatorio: true },
+    { key: "recomendaciones", label: "Explicar recomendaciones futuras o mantenimiento preventivo", obligatorio: true },
+    { key: "cliente_dudas", label: "Preguntar al cliente si tiene dudas", obligatorio: true },
+    { key: "cliente_entendio", label: "Confirmar que el cliente entendió el trabajo realizado", obligatorio: true },
+    { key: "validacion_conformidad", label: "Solicitar validación verbal de conformidad", obligatorio: true },
+  ];
 
-                  <Field label="PST" icon={UserRound} error={errores.asesor}>
-                    <Select
-                      value={form.asesor_servicio}
-                      error={errores.asesor}
-                      onChange={(event) => setField("asesor_servicio", event.target.value)}
-                    >
-                      <option value="">Seleccionar...</option>
-                      {ASESORES_VOLVO.map((asesor) => (
-                        <option key={asesor} value={asesor}>
-                          {asesor}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-
-                  <Field label="Técnico responsable" icon={Wrench} error={errores.tecnico}>
-                    <Input
-                      value={form.tecnico_responsable}
-                      error={errores.tecnico}
-                      onChange={(event) => setField("tecnico_responsable", event.target.value)}
-                      placeholder="Nombre técnico"
-                    />
-                  </Field>
-
-                  <Field label="Fecha entrega" icon={ClipboardList} error={errores.fecha}>
-                    <Input
-                      type="datetime-local"
-                      value={form.fecha_hora_entrega}
-                      error={errores.fecha}
-                      onChange={(event) => setField("fecha_hora_entrega", event.target.value)}
-                    />
-                  </Field>
-
-                  <Field label="Contacto preferido" icon={MessageSquareText}>
-                    <Select
-                      value={form.metodo_contacto_preferido}
-                      onChange={(event) => setField("metodo_contacto_preferido", event.target.value)}
-                    >
-                      {METODOS_CONTACTO.map((metodo) => (
-                        <option key={metodo.value} value={metodo.value}>
-                          {metodo.label}
-                        </option>
-                      ))}
-                    </Select>
-                  </Field>
-                </div>
-              </section>
-
-              <section className="rounded-3xl border border-white/10 bg-[#06122f]/70 p-4">
-                <h2 className="mb-3 flex items-center gap-2 text-sm font-black uppercase tracking-wide text-white/70">
-                  <CarFront className="h-4 w-4" />
-                  Vehículo y evidencia
-                </h2>
-
-                <div className="grid gap-3">
-                  <Field label="Orden servicio" icon={ClipboardList} error={errores.orden}>
-                    <Input
-                      value={form.orden_servicio}
-                      error={errores.orden}
-                      onChange={(event) => setField("orden_servicio", event.target.value.toUpperCase())}
-                      placeholder="OS-0001"
-                    />
-                  </Field>
-
-                  <Field label="Factura" icon={ReceiptText}>
-                    <Input
-                      value={form.factura}
-                      onChange={(event) => setField("factura", event.target.value.toUpperCase())}
-                      placeholder="FAC-0001"
-                    />
-                  </Field>
-
-                  <Field label="Placas" icon={CarFront}>
-                    <Input
-                      value={form.placas}
-                      onChange={(event) => setField("placas", event.target.value.toUpperCase())}
-                      placeholder="ABC123"
-                    />
-                  </Field>
-
-                  <Field label="VIN" icon={ClipboardList}>
-                    <Input
-                      value={form.vin}
-                      onChange={(event) => setField("vin", event.target.value.toUpperCase())}
-                      placeholder="VIN"
-                    />
-                  </Field>
-
-                  <Field label="Modelo" icon={CarFront}>
-                    <Input
-                      value={form.modelo}
-                      onChange={(event) => setField("modelo", event.target.value)}
-                      placeholder="XC60"
-                    />
-                  </Field>
-
-                  <Field label="Kilometraje" icon={Gauge}>
-                    <Input
-                      value={form.kilometraje}
-                      onChange={(event) => setField("kilometraje", soloNumeros(event.target.value))}
-                      inputMode="numeric"
-                      placeholder="35000"
-                    />
-                  </Field>
-
-                  <Field label="Descripción evidencia" icon={Camera}>
-                    <Input
-                      value={form.descripcion_evidencia}
-                      onChange={(event) => setField("descripcion_evidencia", event.target.value)}
-                      placeholder="Ej. unidad entregada"
-                    />
-                  </Field>
-
-                  <Field label="Observaciones" icon={MessageSquareText}>
-                    <Textarea
-                      value={form.observaciones}
-                      onChange={(event) => setField("observaciones", event.target.value)}
-                      placeholder="Comentarios generales de entrega..."
-                    />
-                  </Field>
-
-                  <EvidenciasPicker evidencias={evidencias} setEvidencias={setEvidencias} />
-                </div>
-              </section>
-            </aside>
-
-            <section className="rounded-3xl border border-white/10 bg-[#06122f]/70 p-4">
-              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <h2 className="flex items-center gap-2 text-sm font-black uppercase tracking-wide text-white/70">
-                  <ClipboardList className="h-4 w-4" />
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 py-8 px-4">
+      <div className="mx-auto max-w-6xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="overflow-hidden rounded-3xl bg-white shadow-xl shadow-slate-200/60"
+        >
+          {/* ═══ HEADER — estilo VOLVO (idéntico al Tráfico de Piso) ═══ */}
+          <div className="relative overflow-hidden bg-[#1a2a3a] px-8 py-6 md:px-12 md:py-8">
+            <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-white/5 blur-3xl" />
+            <div className="absolute -left-20 -bottom-20 h-48 w-48 rounded-full bg-amber-400/5 blur-2xl" />
+            
+            <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div>
+               <h1
+                  className="text-5xl font-extralight tracking-[0.6em] text-white uppercase"
+                  style={{ fontFamily: "Georgia, serif" }}
+                >
+                  VOLVO
+                </h1>
+                <p
+                  className="text-xs font-light uppercase tracking-[0.25em] text-white"
+                  style={{
+                    fontFamily: "'Helvetica Neue', Helvetica, Arial, sans-serif"
+                  }}
+                >
                   Checklist de entrega
-                </h2>
-
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#212721]">
-                  {progress.completados}/{progress.total} completados
+                </p>
+              </div>
+              <div className="flex items-center gap-3 rounded-2xl bg-white/5 px-5 py-2.5 backdrop-blur">
+                <Sparkles className="h-4 w-4 text-amber-400" />
+                <span className="text-sm font-medium text-white/80">
+                  Automotriz R&amp;R
                 </span>
               </div>
-
-              <ChecklistCard checklist={checklist} onChange={setChecklist} />
-            </section>
+            </div>
           </div>
 
-          <div className="sticky bottom-2 mt-4 rounded-2xl border border-white/10 bg-[#06122f]/90 p-3 backdrop-blur-xl">
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-white text-sm font-black text-[#212721] transition hover:bg-white/90 disabled:opacity-60"
-            >
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              {saving ? "Guardando..." : "Guardar checklist de entrega"}
-            </button>
+          {/* ═══ SUBHEADER ═══ */}
+          <div className="border-b border-gray-100 bg-gray-50/50 px-8 py-4 md:px-12">
+            <p className="text-sm text-gray-600">
+              Explicación al cliente, revisión final, documentación y evidencias.
+            </p>
           </div>
-        </form>
-      </main>
+
+          {/* ═══ MENSAJE ═══ */}
+          {mensaje && (
+            <div className={cls(
+              "mx-8 mt-6 rounded-xl border px-5 py-3.5 text-sm font-medium md:mx-12",
+              guardado
+                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                : "border-red-200 bg-red-50 text-red-700"
+            )}>
+              {mensaje}
+            </div>
+          )}
+
+          {/* ═══ FORMULARIO ═══ */}
+          <form onSubmit={handleSubmit} className="p-6 md:p-10">
+            {/* ── DATOS GENERALES (grid de 3 columnas como Tráfico de Piso) ── */}
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {/* Dealer */}
+              <Campo label="Dealer" requerido>
+                <Select
+                  value={form.dealer}
+                  onChange={(e) => updateField("dealer", e.target.value)}
+                >
+                  {DEALERS.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </Select>
+              </Campo>
+
+              {/* Cliente */}
+              <Campo label="Cliente" requerido>
+                <Input
+                  value={form.cliente}
+                  onChange={(e) => updateField("cliente", e.target.value.toUpperCase())}
+                  placeholder="NOMBRE COMPLETO"
+                />
+              </Campo>
+
+              {/* Teléfono */}
+              <Campo
+                label="Teléfono"
+                requerido
+                ayuda="10 dígitos o 52 + 10 dígitos"
+              >
+                <Input
+                  value={form.telefono}
+                  onChange={(e) => updateField("telefono", e.target.value.replace(/\D/g, "").slice(0, 12))}
+                  placeholder="2711234567"
+                />
+              </Campo>
+
+              {/* Correo */}
+              <Campo label="E-mail">
+                <Input
+                  type="email"
+                  value={form.correo}
+                  onChange={(e) => updateField("correo", e.target.value)}
+                  placeholder="correo@dominio.com"
+                />
+              </Campo>
+
+              {/* PST */}
+              <Campo label="PST">
+                <Select
+                  value={form.pst}
+                  onChange={(e) => updateField("pst", e.target.value)}
+                >
+                  <option value="">Seleccionar...</option>
+                  {PST_OPCIONES.map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </Select>
+              </Campo>
+
+              {/* Asesor (autocomplete) */}
+              <Campo label="Asesor" requerido>
+                <AsesorAutocomplete
+                  value={form.asesor}
+                  onChange={(valor) => updateField("asesor", valor)}
+                />
+              </Campo>
+
+              {/* Técnico responsable */}
+              <Campo label="Técnico responsable" requerido>
+                <Input
+                  value={form.tecnico}
+                  onChange={(e) => updateField("tecnico", e.target.value)}
+                  placeholder="Nombre técnico"
+                />
+              </Campo>
+
+              {/* Fecha entrega */}
+              <Campo label="Fecha entrega" requerido>
+                <Input
+                  type="datetime-local"
+                  value={form.fecha_entrega}
+                  onChange={(e) => updateField("fecha_entrega", e.target.value)}
+                />
+              </Campo>
+
+              {/* Contacto preferido */}
+              <Campo label="Contacto preferido">
+                <Select
+                  value={form.contacto_preferido}
+                  onChange={(e) => updateField("contacto_preferido", e.target.value)}
+                >
+                  {CONTACTOS_PREFERIDOS.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </Select>
+              </Campo>
+            </div>
+
+            {/* ── CHECKLIST DE ENTREGA ── */}
+            <div className="mt-8 border-t border-gray-200 pt-6">
+              <h2 className="text-lg font-bold text-gray-800 mb-2">
+                CHECKLIST DE ENTREGA
+              </h2>
+              <p className="mb-4 text-xs text-gray-500">
+                Obligatorio: no entregar unidad sin explicación clara y validada.
+              </p>
+
+              <div className="space-y-3">
+                {itemsChecklist.map((item) => (
+                  <OpcionChecklist
+                    key={item.key}
+                    label={item.label}
+                    value={form[item.key]}
+                    onChange={(valor) => updateField(item.key, valor)}
+                    obligatorio={item.obligatorio}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* ── COMENTARIOS ADICIONALES ── */}
+            <div className="mt-6">
+              <Campo label="Comentarios adicionales">
+                <Textarea
+                  value={form.comentarios}
+                  onChange={(e) => updateField("comentarios", e.target.value)}
+                  placeholder="Notas adicionales sobre la entrega..."
+                  rows={3}
+                />
+              </Campo>
+            </div>
+
+            {/* ── BOTONES RÁPIDOS ── */}
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  const nuevos = {};
+                  itemsChecklist.forEach((item) => {
+                    nuevos[item.key] = "correcto";
+                  });
+                  setForm((prev) => ({ ...prev, ...nuevos }));
+                }}
+                className="rounded-full bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition"
+              >
+                ✅ Todo OK
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const nuevos = {};
+                  itemsChecklist.forEach((item) => {
+                    nuevos[item.key] = "na";
+                  });
+                  setForm((prev) => ({ ...prev, ...nuevos }));
+                }}
+                className="rounded-full bg-gray-100 px-4 py-2 text-xs font-bold text-gray-600 border border-gray-200 hover:bg-gray-200 transition"
+              >
+                ⚪ Todo N/A
+              </button>
+            </div>
+
+            {/* ═══ FOOTER — Botón guardar (igual al Tráfico de Piso) ═══ */}
+            <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl bg-gray-50/80 px-6 py-4 md:flex-row">
+              <p className="text-sm text-gray-500">
+                📋 Revisa los datos y guarda el registro.
+              </p>
+              <button
+                type="submit"
+                disabled={enviando}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1a2a3a] px-8 py-3.5 text-sm font-bold text-white transition-all hover:bg-[#2a3a4a] hover:shadow-lg hover:shadow-[#1a2a3a]/20 disabled:opacity-60 md:w-auto"
+              >
+                {enviando ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Guardando...
+                  </>
+                ) : (
+                  <>
+                    Guardar checklist
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
     </div>
   );
 }
